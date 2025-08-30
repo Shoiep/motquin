@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, ArrowLeft, BookOpen, Brain, Lightbulb } from 'lucide-react';
+import { Send, Bot, User, ArrowLeft, BookOpen, Brain, Lightbulb, Calculator, Microscope, Globe, Palette, Music, ChevronRight } from 'lucide-react';
+import type { Subject } from '../App';
 
 interface ChatBotPageProps {
   onBack: () => void;
@@ -10,28 +11,99 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  isExercise?: boolean;
+  exerciseData?: ExerciseData;
 }
 
-const initialMessages: Message[] = [
+interface ExerciseData {
+  type: 'verb-extraction' | 'tense-identification' | 'sentence-completion';
+  sentence: string;
+  correctAnswer: string;
+  options?: string[];
+  userAnswer?: string;
+  isCorrect?: boolean;
+}
+
+const subjects: Subject[] = [
   {
-    id: 1,
-    text: 'مرحباً! أنا مساعدك الذكي في التعلم. يمكنني مساعدتك في فهم ومراجعة دروسك. كيف يمكنني مساعدتك اليوم؟',
-    sender: 'bot',
-    timestamp: new Date()
+    id: 'english',
+    name: 'الإنجليزية',
+    nameEn: 'English',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-100 to-blue-200'
+  },
+  {
+    id: 'math',
+    name: 'الرياضيات',
+    nameEn: 'Mathematics',
+    color: 'text-green-600',
+    bgColor: 'bg-gradient-to-br from-green-100 to-green-200'
+  },
+  {
+    id: 'science',
+    name: 'العلوم',
+    nameEn: 'Science',
+    color: 'text-purple-600',
+    bgColor: 'bg-gradient-to-br from-purple-100 to-purple-200'
+  },
+  {
+    id: 'geography',
+    name: 'الجغرافيا',
+    nameEn: 'Geography',
+    color: 'text-orange-600',
+    bgColor: 'bg-gradient-to-br from-orange-100 to-orange-200'
   }
 ];
 
-const quickQuestions = [
-  'اشرح لي درس الرياضيات الأخير',
-  'ما هي قواعد اللغة الإنجليزية المهمة؟',
-  'أريد مراجعة درس العلوم',
-  'كيف أحل هذه المسألة؟'
+const subjectIcons = {
+  english: BookOpen,
+  math: Calculator,
+  science: Microscope,
+  geography: Globe,
+  art: Palette,
+  music: Music
+};
+
+const englishUnits = [
+  { id: 1, name: 'Unit 1', nameAr: 'الوحدة الأولى', topics: ['Present Simple', 'Basic Vocabulary', 'Greetings'] },
+  { id: 2, name: 'Unit 2', nameAr: 'الوحدة الثانية', topics: ['Present Continuous', 'Family Members', 'Daily Activities'] },
+  { id: 3, name: 'Unit 3', nameAr: 'الوحدة الثالثة', topics: ['Past Simple', 'Time Expressions', 'School Life'] },
+  { id: 4, name: 'Unit 4', nameAr: 'الوحدة الرابعة', topics: ['Future Tense', 'Plans and Dreams', 'Weather'] }
 ];
 
+const exercises = {
+  'present simple': [
+    {
+      type: 'verb-extraction' as const,
+      sentence: 'She plays tennis every Sunday.',
+      correctAnswer: 'plays',
+      explanation: 'الفعل في هذه الجملة هو "plays" وهو في زمن المضارع البسيط'
+    },
+    {
+      type: 'tense-identification' as const,
+      sentence: 'They study English at school.',
+      correctAnswer: 'Present Simple',
+      options: ['Present Simple', 'Present Continuous', 'Past Simple', 'Future'],
+      explanation: 'هذه الجملة في زمن المضارع البسيط لأنها تعبر عن عادة أو حقيقة'
+    },
+    {
+      type: 'sentence-completion' as const,
+      sentence: 'I _____ to school every day.',
+      correctAnswer: 'go',
+      options: ['go', 'goes', 'going', 'went'],
+      explanation: 'نستخدم "go" مع الضمير "I" في المضارع البسيط'
+    }
+  ]
+};
+
 export default function ChatBotPage({ onBack }: ChatBotPageProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [currentStep, setCurrentStep] = useState<'subject' | 'unit' | 'chat'>('subject');
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,6 +113,35 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleSubjectSelect = (subject: Subject) => {
+    setSelectedSubject(subject);
+    if (subject.id === 'english') {
+      setCurrentStep('unit');
+    } else {
+      // For other subjects, go directly to chat
+      setCurrentStep('chat');
+      initializeChat(subject, null);
+    }
+  };
+
+  const handleUnitSelect = (unitId: number) => {
+    setSelectedUnit(unitId);
+    setCurrentStep('chat');
+    initializeChat(selectedSubject!, unitId);
+  };
+
+  const initializeChat = (subject: Subject, unit: number | null) => {
+    const welcomeMessage: Message = {
+      id: 1,
+      text: unit 
+        ? `مرحباً! أنا مساعدك الذكي في ${subject.name} - ${englishUnits.find(u => u.id === unit)?.nameAr}. يمكنني مساعدتك في فهم الدروس وحل التمارين. ما الموضوع الذي تريد أن نتحدث عنه؟`
+        : `مرحباً! أنا مساعدك الذكي في ${subject.name}. كيف يمكنني مساعدتك اليوم؟`,
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages([welcomeMessage]);
+  };
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -58,18 +159,34 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
 
     // Simulate bot response
     setTimeout(() => {
-      const botResponse: Message = {
-        id: Date.now() + 1,
-        text: getBotResponse(text),
-        sender: 'bot',
-        timestamp: new Date()
-      };
+      const botResponse = getBotResponse(text);
       setMessages(prev => [...prev, botResponse]);
       setIsTyping(false);
     }, 1500);
   };
 
-  const getBotResponse = (userText: string): string => {
+  const getBotResponse = (userText: string): Message => {
+    const lowerText = userText.toLowerCase();
+    
+    // Check if user is asking about Present Simple
+    if (lowerText.includes('present simple') || lowerText.includes('المضارع البسيط')) {
+      const exercise = exercises['present simple'][currentExerciseIndex];
+      
+      return {
+        id: Date.now() + 1,
+        text: `ممتاز! دعني أعطيك تمرين على المضارع البسيط. ${
+          exercise.type === 'verb-extraction' ? 'استخرج الفعل من الجملة التالية:' :
+          exercise.type === 'tense-identification' ? 'حدد زمن الجملة التالية:' :
+          'أكمل الجملة التالية:'
+        }`,
+        sender: 'bot',
+        timestamp: new Date(),
+        isExercise: true,
+        exerciseData: exercise
+      };
+    }
+
+    // Default responses
     const responses = [
       'هذا سؤال ممتاز! دعني أساعدك في فهم هذا الموضوع بطريقة مبسطة...',
       'بناءً على تقدمك في الدراسة، أنصحك بالتركيز على هذه النقاط الأساسية...',
@@ -77,20 +194,184 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
       'ممتاز! هذا يظهر أنك تفهم المفاهيم الأساسية. دعنا نتعمق أكثر...',
       'أرى أنك تحتاج لمراجعة هذا الموضوع. سأقدم لك شرحاً مفصلاً...'
     ];
-    return responses[Math.floor(Math.random() * responses.length)];
+    
+    return {
+      id: Date.now() + 1,
+      text: responses[Math.floor(Math.random() * responses.length)],
+      sender: 'bot',
+      timestamp: new Date()
+    };
   };
 
-  const handleQuickQuestion = (question: string) => {
-    handleSendMessage(question);
+  const handleExerciseAnswer = (answer: string, exerciseData: ExerciseData) => {
+    const isCorrect = answer.toLowerCase() === exerciseData.correctAnswer.toLowerCase();
+    
+    const feedbackMessage: Message = {
+      id: Date.now(),
+      text: isCorrect 
+        ? `🎉 إجابة صحيحة! ${exerciseData.explanation || ''}`
+        : `❌ إجابة خاطئة. الإجابة الصحيحة هي: "${exerciseData.correctAnswer}". ${exerciseData.explanation || ''}`,
+      sender: 'bot',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, feedbackMessage]);
+
+    // Move to next exercise if correct
+    if (isCorrect && currentExerciseIndex < exercises['present simple'].length - 1) {
+      setCurrentExerciseIndex(prev => prev + 1);
+      setTimeout(() => {
+        const nextExercise = exercises['present simple'][currentExerciseIndex + 1];
+        const nextMessage: Message = {
+          id: Date.now() + 2,
+          text: `ممتاز! دعنا ننتقل للتمرين التالي. ${
+            nextExercise.type === 'verb-extraction' ? 'استخرج الفعل من الجملة التالية:' :
+            nextExercise.type === 'tense-identification' ? 'حدد زمن الجملة التالية:' :
+            'أكمل الجملة التالية:'
+          }`,
+          sender: 'bot',
+          timestamp: new Date(),
+          isExercise: true,
+          exerciseData: nextExercise
+        };
+        setMessages(prev => [...prev, nextMessage]);
+      }, 2000);
+    }
   };
 
+  // Subject Selection View
+  if (currentStep === 'subject') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
+          >
+            <ArrowLeft size={24} />
+            <span className="text-lg">رجوع</span>
+          </button>
+          
+          <h1 className="text-3xl font-bold text-blue-600">افهم دروسك</h1>
+          <div className="w-16"></div>
+        </div>
+
+        <div className="text-center mb-12">
+          <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-4 rounded-full inline-block mb-6">
+            <Brain className="w-12 h-12 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">اختر المادة التي تريد فهمها</h2>
+          <p className="text-gray-600">سأساعدك في فهم الدروس بطريقة تفاعلية</p>
+        </div>
+
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          {subjects.map((subject) => {
+            const IconComponent = subjectIcons[subject.id as keyof typeof subjectIcons];
+            
+            return (
+              <div
+                key={subject.id}
+                onClick={() => handleSubjectSelect(subject)}
+                className={`${subject.bgColor} p-8 rounded-3xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 cursor-pointer group`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`${subject.color}`}>
+                      <IconComponent size={48} className="group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                    <div>
+                      <h3 className={`${subject.color} text-2xl font-bold mb-1`}>
+                        {subject.name}
+                      </h3>
+                      <p className="text-gray-600">
+                        {subject.nameEn}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className={`${subject.color} group-hover:translate-x-1 transition-transform duration-300`} size={24} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Unit Selection View (for English)
+  if (currentStep === 'unit' && selectedSubject?.id === 'english') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => setCurrentStep('subject')}
+            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
+          >
+            <ArrowLeft size={24} />
+            <span className="text-lg">رجوع</span>
+          </button>
+          
+          <h1 className="text-3xl font-bold text-blue-600">اللغة الإنجليزية</h1>
+          <div className="w-16"></div>
+        </div>
+
+        <div className="text-center mb-12">
+          <div className="bg-blue-100 p-4 rounded-full inline-block mb-6">
+            <BookOpen className="w-12 h-12 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">اختر الوحدة أو الدرس</h2>
+          <p className="text-gray-600">سأساعدك في فهم قواعد اللغة الإنجليزية</p>
+        </div>
+
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          {englishUnits.map((unit) => (
+            <div
+              key={unit.id}
+              onClick={() => handleUnitSelect(unit.id)}
+              className="bg-white rounded-3xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 cursor-pointer group p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-blue-600 mb-1">
+                    {unit.name}
+                  </h3>
+                  <p className="text-gray-600">
+                    {unit.nameAr}
+                  </p>
+                </div>
+                <ChevronRight className="text-blue-600 group-hover:translate-x-1 transition-transform duration-300" size={24} />
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500 mb-2">المواضيع:</p>
+                {unit.topics.map((topic, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span>{topic}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Chat View
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
       {/* Header */}
       <div className="bg-white shadow-lg p-6">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <button
-            onClick={onBack}
+            onClick={() => {
+              if (selectedSubject?.id === 'english') {
+                setCurrentStep('unit');
+              } else {
+                setCurrentStep('subject');
+              }
+            }}
             className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
           >
             <ArrowLeft size={24} />
@@ -102,7 +383,10 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
               <Bot className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">مساعدك الذكي</h1>
+              <h1 className="text-xl font-bold text-gray-800">
+                مساعدك في {selectedSubject?.name}
+                {selectedUnit && ` - ${englishUnits.find(u => u.id === selectedUnit)?.nameAr}`}
+              </h1>
               <p className="text-sm text-gray-500">متصل الآن</p>
             </div>
           </div>
@@ -115,41 +399,84 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`flex items-start gap-3 max-w-xs lg:max-w-md ${
-                message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-              }`}>
-                <div className={`p-2 rounded-full ${
-                  message.sender === 'user' 
-                    ? 'bg-blue-500' 
-                    : 'bg-gradient-to-r from-blue-500 to-purple-500'
+            <div key={message.id}>
+              <div className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex items-start gap-3 max-w-xs lg:max-w-md ${
+                  message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}>
-                  {message.sender === 'user' ? (
-                    <User className="w-5 h-5 text-white" />
-                  ) : (
-                    <Bot className="w-5 h-5 text-white" />
-                  )}
-                </div>
-                
-                <div className={`p-4 rounded-2xl shadow-lg ${
-                  message.sender === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-sm'
-                    : 'bg-white text-gray-800 rounded-bl-sm'
-                }`}>
-                  <p className="text-sm leading-relaxed">{message.text}</p>
-                  <p className={`text-xs mt-2 ${
-                    message.sender === 'user' ? 'text-blue-100' : 'text-gray-400'
+                  <div className={`p-2 rounded-full ${
+                    message.sender === 'user' 
+                      ? 'bg-blue-500' 
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500'
                   }`}>
-                    {message.timestamp.toLocaleTimeString('ar-SA', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </p>
+                    {message.sender === 'user' ? (
+                      <User className="w-5 h-5 text-white" />
+                    ) : (
+                      <Bot className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  
+                  <div className={`p-4 rounded-2xl shadow-lg ${
+                    message.sender === 'user'
+                      ? 'bg-blue-500 text-white rounded-br-sm'
+                      : 'bg-white text-gray-800 rounded-bl-sm'
+                  }`}>
+                    <p className="text-sm leading-relaxed">{message.text}</p>
+                    <p className={`text-xs mt-2 ${
+                      message.sender === 'user' ? 'text-blue-100' : 'text-gray-400'
+                    }`}>
+                      {message.timestamp.toLocaleTimeString('ar-SA', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {/* Exercise Component */}
+              {message.isExercise && message.exerciseData && (
+                <div className="mt-4 flex justify-start">
+                  <div className="max-w-md bg-gradient-to-r from-green-50 to-blue-50 border-2 border-blue-200 rounded-2xl p-6 shadow-lg">
+                    <div className="text-center mb-4">
+                      <h4 className="font-bold text-gray-800 mb-2">التمرين:</h4>
+                      <p className="text-lg text-gray-700 font-medium">
+                        "{message.exerciseData.sentence}"
+                      </p>
+                    </div>
+
+                    {message.exerciseData.options ? (
+                      <div className="space-y-2">
+                        {message.exerciseData.options.map((option, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleExerciseAnswer(option, message.exerciseData!)}
+                            className="w-full p-3 text-left bg-white hover:bg-blue-100 border border-gray-200 rounded-xl transition-all duration-200 hover:border-blue-300"
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder="اكتب إجابتك هنا..."
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all duration-200"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              const target = e.target as HTMLInputElement;
+                              handleExerciseAnswer(target.value, message.exerciseData!);
+                              target.value = '';
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-gray-500 text-center">اضغط Enter لإرسال الإجابة</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           
@@ -174,19 +501,24 @@ export default function ChatBotPage({ onBack }: ChatBotPageProps) {
         </div>
       </div>
 
-      {/* Quick Questions */}
-      {messages.length === 1 && (
+      {/* Quick Questions (only show at start) */}
+      {messages.length === 1 && selectedSubject?.id === 'english' && (
         <div className="p-6 bg-white border-t">
           <div className="max-w-4xl mx-auto">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-yellow-500" />
-              أسئلة سريعة
+              مواضيع شائعة في {englishUnits.find(u => u.id === selectedUnit)?.nameAr}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {quickQuestions.map((question, index) => (
+              {[
+                'أريد فهم Present Simple',
+                'ما هي قواعد الأفعال؟',
+                'كيف أكون جملة صحيحة؟',
+                'أريد تمارين على القواعد'
+              ].map((question, index) => (
                 <button
                   key={index}
-                  onClick={() => handleQuickQuestion(question)}
+                  onClick={() => handleSendMessage(question)}
                   className="text-right p-3 bg-gray-100 hover:bg-blue-100 rounded-xl transition-colors duration-200 text-gray-700 hover:text-blue-600"
                 >
                   {question}

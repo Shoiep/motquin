@@ -19,6 +19,8 @@ export interface Subject {
   bgColor: string;
 }
 
+export type VocabularyCategory = 'main' | 'additional';
+
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
